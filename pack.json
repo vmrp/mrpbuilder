@@ -1,0 +1,14 @@
+{
+    "display": "测试gcc编译",
+    "filename": "./demo/demo.mrp",
+    "appid": 1,
+    "version": 1,
+    "vendor": "vendor",
+    "description": "desc",
+    "files": [
+        "./lib/start.mr",
+        "./demo/bin.elf",
+        "./demo/test.bmp",
+        "./lib/cfunction.ext"
+    ]
+}
