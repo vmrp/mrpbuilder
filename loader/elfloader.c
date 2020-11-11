@@ -1,7 +1,10 @@
 #include "elfload.h"
 #include "../header/bridge.h"
 
+extern uint32 mrc_rand(void);
+extern void mrc_sand(uint32 seed);
 extern int32 mr_c_function_load(int32 code);
+
 #define C_FUNCTION_P() (*(((void**)mr_c_function_load) - 1))
 #define GET_MR_TABLE() (*(((void**)mr_c_function_load) - 2))
 
@@ -125,6 +128,8 @@ int32 mrc_init(void) {
     inFuncs.mrc_freeFileData = mrc_freeFileData;
     inFuncs.mrc_freeOrigin = mrc_freeOrigin;
 
+    inFuncs.mrc_sand = mrc_sand;
+    inFuncs.mrc_rand = mrc_rand;
     {
         typedef int32 (*mr_sleep_t)(uint32 ms);
         mr_sleep_t mr_sleep = (mr_sleep_t)(((void**)inFuncs.mr_table)[36]);

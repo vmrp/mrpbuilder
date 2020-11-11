@@ -33,6 +33,8 @@ typedef struct {
     void (*mrc_freeFileData)(void *data, int32 filelen);
     void (*mrc_freeOrigin)(void *add, int32 size);
 
+    uint32 (*mrc_rand)(void);
+    void (*mrc_sand)(uint32 seed);
 } inFuncs_st;
 
 typedef struct {
