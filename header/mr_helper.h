@@ -17,56 +17,55 @@ typedef unsigned long long uint64;
 #endif
 
 enum {
-	MR_KEY_PRESS, 	//按键按下
-	MR_KEY_RELEASE, //按键释放
-	MR_MOUSE_DOWN, 	//鼠标按下
-	MR_MOUSE_UP, 	//鼠标释放
-	MR_MENU_SELECT, //
-	MR_MENU_RETURN, //
-	MR_DIALOG_EVENT, //
-	MR_EVENT01, //
-	MR_EXIT_EVENT, //
-	MR_EVENT02, //
-	MR_LOCALUI_EVENT, //
-	MR_OSD_EVENT, //
-	MR_MOUSE_MOVE, //
-	MR_ERROR_EVENT, //*13执行异常通过这个事件来通知*/
-	MR_PHB_EVENT,//
-	MR_SMS_OP_EVENT,//
-	MR_SMS_GET_SC,//
-	MR_DATA_ACCOUNT_EVENT,//
-	MR_MOTION_EVENT,//
+    MR_KEY_PRESS,           //按键按下
+    MR_KEY_RELEASE,         //按键释放
+    MR_MOUSE_DOWN,          //鼠标按下
+    MR_MOUSE_UP,            //鼠标释放
+    MR_MENU_SELECT,         //
+    MR_MENU_RETURN,         //
+    MR_DIALOG_EVENT,        //
+    MR_EVENT01,             //
+    MR_EXIT_EVENT,          //
+    MR_EVENT02,             //
+    MR_LOCALUI_EVENT,       //
+    MR_OSD_EVENT,           //
+    MR_MOUSE_MOVE,          //
+    MR_ERROR_EVENT,         //*13执行异常通过这个事件来通知*/
+    MR_PHB_EVENT,           //
+    MR_SMS_OP_EVENT,        //
+    MR_SMS_GET_SC,          //
+    MR_DATA_ACCOUNT_EVENT,  //
+    MR_MOTION_EVENT,        //
 
-	MR_TIMER_EVENT = 1001,
+    MR_TIMER_EVENT = 1001,
     MR_NET_EVENT
 };
 
-
 enum {
-   MR_KEY_0,               //按键 0
-   MR_KEY_1,               //按键 1
-   MR_KEY_2,               //按键 2
-   MR_KEY_3,               //按键 3
-   MR_KEY_4,               //按键 4
-   MR_KEY_5,               //按键 5
-   MR_KEY_6,               //按键 6
-   MR_KEY_7,               //按键 7
-   MR_KEY_8,               //按键 8
-   MR_KEY_9,               //按键 9
-   MR_KEY_STAR,            //按键 *
-   MR_KEY_POUND,           //按键 #
-   MR_KEY_UP,              //按键 上
-   MR_KEY_DOWN,            //按键 下
-   MR_KEY_LEFT,            //按键 左
-   MR_KEY_RIGHT,           //按键 右
-   MR_KEY_POWER,           //按键 挂机键
-   MR_KEY_SOFTLEFT,        //按键 左软键
-   MR_KEY_SOFTRIGHT,       //按键 右软键
-   MR_KEY_SEND,            //按键 接听键
-   MR_KEY_SELECT,          //按键 确认/选择（若方向键中间有确认键，建议设为该键）
-   MR_KEY_VOLUME_UP,          //按键 侧键上
-   MR_KEY_VOLUME_DOWN,          //按键 侧键下
-   MR_KEY_NONE             //按键 保留
+    MR_KEY_0,            //按键 0
+    MR_KEY_1,            //按键 1
+    MR_KEY_2,            //按键 2
+    MR_KEY_3,            //按键 3
+    MR_KEY_4,            //按键 4
+    MR_KEY_5,            //按键 5
+    MR_KEY_6,            //按键 6
+    MR_KEY_7,            //按键 7
+    MR_KEY_8,            //按键 8
+    MR_KEY_9,            //按键 9
+    MR_KEY_STAR,         //按键 *
+    MR_KEY_POUND,        //按键 #
+    MR_KEY_UP,           //按键 上
+    MR_KEY_DOWN,         //按键 下
+    MR_KEY_LEFT,         //按键 左
+    MR_KEY_RIGHT,        //按键 右
+    MR_KEY_POWER,        //按键 挂机键
+    MR_KEY_SOFTLEFT,     //按键 左软键
+    MR_KEY_SOFTRIGHT,    //按键 右软键
+    MR_KEY_SEND,         //按键 接听键
+    MR_KEY_SELECT,       //按键 确认/选择（若方向键中间有确认键，建议设为该键）
+    MR_KEY_VOLUME_UP,    //按键 侧键上
+    MR_KEY_VOLUME_DOWN,  //按键 侧键下
+    MR_KEY_NONE          //按键 保留
 };
 
 typedef struct
@@ -117,7 +116,6 @@ enum {
     BM_REVERSE
 };
 
-
 typedef void (*mrc_timerCB)(int32 data);
 
 typedef struct mrc_timerSt /* TIMER CONTROL BLOCK      */
@@ -131,8 +129,6 @@ typedef struct mrc_timerSt /* TIMER CONTROL BLOCK      */
     struct mrc_timerSt* next;  /* next in active chain     */
     struct mrc_timerSt* next2; /* next in timeout chain     */
 } mrc_timerSt;
-
-
 
 typedef struct
 {
@@ -257,7 +253,6 @@ typedef unsigned long int (*T_strtoul)(const char* nptr,
                                        char** endptr, int base);
 typedef int (*T_rand)(void);
 
-
 typedef struct {
     int16 x;
     int16 y;
@@ -318,13 +313,13 @@ typedef struct
 } mrc_appInfoSt;
 
 typedef unsigned char md5_byte_t; /* 8-bit byte */
-typedef unsigned int md5_word_t; /* 32-bit word */
+typedef unsigned int md5_word_t;  /* 32-bit word */
 
 /* Define the state of the MD5 Algorithm. */
 typedef struct md5_state_s {
-    md5_word_t count[2];	/* message length in bits, lsw first */
-    md5_word_t abcd[4];		/* digest buffer */
-    md5_byte_t buf[64];		/* accumulate block */
+    md5_word_t count[2]; /* message length in bits, lsw first */
+    md5_word_t abcd[4];  /* digest buffer */
+    md5_byte_t buf[64];  /* accumulate block */
 } md5_state_t;
 
 typedef void (*T_mr_md5_init)(md5_state_t* pms);
@@ -366,8 +361,11 @@ typedef int32 (*T__mr_div)(int32 a, int32 b);
 typedef int32 (*T__mr_mod)(int32 a, int32 b);
 
 typedef int32 (*T_mrp_error)(int32 L);
-
 typedef void (*T_mrp_settop)(int32 L, int idx);
+typedef void (*T_mrp_pushstring)(int32 L, const char* s);
+typedef void (*T_mrp_gettable)(int32 L, int idx);
+typedef int (*T_mrp_type)(int32 L, int idx);
+typedef int (*T_mrp_pcall)(int32 L, int nargs, int nresults, int errfunc);
 
 typedef struct {
     uint8** mr_m0_files;
@@ -390,6 +388,78 @@ typedef struct {
     void* _mr_newSIMInd;
 
     void* _mr_isMr;
+
+    void* mrp_gettop;  //1937
+    T_mrp_settop mrp_settop;
+    void* mrp_pushvalue;
+    void* mrp_remove;
+    void* mrp_insert;
+    void* mrp_replace;
+
+    void* mrp_isnumber;
+    void* mrp_isstring;
+    void* mrp_iscfunction;
+    void* mrp_isuserdata;
+    T_mrp_type mrp_type;
+    void* mrp_typename;
+    void* mrp_shorttypename;
+
+    void* mrp_equal;
+    void* mrp_rawequal;
+    void* mrp_lessthan;
+
+    void* mrp_tonumber;
+    void* mrp_toboolean;
+    void* mrp_tostring;
+    void* mrp_strlen;
+    void* mrp_tostring_t;
+    void* mrp_strlen_t;
+    void* mrp_tocfunction;
+    void* mrp_touserdata;
+    void* mrp_tothread;
+    void* mrp_topointer;
+
+    void* mrp_pushnil;
+    void* mrp_pushnumber;
+    void* mrp_pushlstring;
+    T_mrp_pushstring mrp_pushstring;
+    void* mrp_pushvfstring;
+    void* mrp_pushfstring;
+    void* mrp_pushboolean;
+    void* mrp_pushcclosure;
+
+    T_mrp_gettable mrp_gettable;
+    void* mrp_rawget;
+    void* mrp_rawgeti;
+    void* mrp_newtable;
+    void* mrp_getmetatable;
+
+    void* mrp_settable;
+    void* mrp_rawset;
+    void* mrp_rawseti;
+
+    void* mrp_call;
+    T_mrp_pcall mrp_pcall;
+    void* mrp_load;
+
+    void* mrp_getgcthreshold;
+    void* mrp_setgcthreshold;
+
+    T_mrp_error mrp_error;
+
+    void* mrp_checkstack;
+    void* mrp_newuserdata;
+    void* mrp_getfenv;
+    void* mrp_setfenv;
+    void* mrp_setmetatable;
+    void* mrp_cpcall;
+    void* mrp_next;
+    void* mrp_concat;
+    void* mrp_pushlightuserdata;
+    void* mrp_getgccount;
+    void* mrp_dump;
+    void* mrp_yield;
+    void* mrp_resume;
 } mr_internal_table;
 
 typedef int32 (*T_mr_c_gcfunction)(int32 code);
@@ -585,7 +655,6 @@ typedef struct _mr_c_call_st {
 
 } mr_c_call_st;
 
-
 typedef int32 (*MR_LOAD_C_FUNCTION)(int32 code);
 typedef int32 (*mrc_extMainSendAppMsg_t)(int32 extCode, int32 app, int32 code, int32 param0, int32 param1);
 
@@ -626,6 +695,5 @@ typedef struct _mrc_extChunk_st {
     mrc_exitApp_t exitApp_f;
 #endif
 } mrc_extChunk_st;
-
 
 #endif

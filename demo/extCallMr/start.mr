@@ -1,0 +1,73 @@
+
+_com(3629, 2913)
+def _mr_c_load ()
+   _mr_c_buf = _strCom(601, "cfunction.ext")
+   if _mr_c_buf then
+      local ret = _strCom(800, _mr_c_buf, 0)
+      return ret
+   else
+      return -1
+   end
+end
+
+gc_times = 0
+
+def dealevent(code, p0, p1, p2)
+   if gc_times > 20 then
+      TestCom(403, 0)
+      gc_times = 0
+   else
+      gc_times = gc_times + 1
+   end
+   if _t(p0) == "str" then
+      local p00 = p0 .. "\0"
+      local p10 = p1 .. "\0"
+      local pContent, clen = string.subV(p00)
+      local pNum, nlen = string.subV(p10)
+      d_s = string.pack("iiiii", code, pContent, pNum, p2, clen)
+   else
+      d_s = string.pack("iii", code, p0 || 0, p1 || 0)
+   end
+   local v, ret = _strCom(801, d_s, 1)
+   return ret
+end
+
+def dealtimer()
+   t_v, t_ret = _strCom(801, "", 2), 801
+   return t_ret
+end
+
+def suspend()
+   s_v, s_ret = _strCom(801, "", 4), 801
+   return s_ret
+end
+
+def resume()
+   r_v, r_ret = _strCom(801, "", 5), 801
+   return r_ret
+end
+
+sysinfo = GetSysInfo()
+
+def extCallMr(str)
+   _clearScr(128,128,0)
+   _drawText(str,0,0,255,255,0)
+   _dispUp(0,0,sysinfo.scrw,sysinfo.scrh)
+end
+
+_clearScr(128,128,0)
+_drawText("vmrp build v20201111",0,0,255,255,0)
+_dispUp(0,0,sysinfo.scrw,sysinfo.scrh)
+_com(400, 2000) // sleep(ms)
+
+if _mr_c_load() == 0 then
+   _strCom(801, {1, sysinfo.vmver}, 6)
+   _gc()
+   _strCom(801, "", 0)
+   if _mr_param then
+      local p_mr_param, param_len = string.subV(_mr_param)
+      _strCom(801, string.pack("iii", 5001, p_mr_param, param_len), 1)
+   end
+else
+   Exit()
+end

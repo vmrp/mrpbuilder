@@ -1,0 +1,13 @@
+{
+    "display": "extCallMr",
+    "filename": "./extMr.mrp",
+    "appid": 1,
+    "version": 1,
+    "vendor": "vendor",
+    "description": "desc",
+    "files": [
+        "./start/start.mr",
+        "../../lib/cfunction.ext",
+        "./bin.elf"
+    ]
+}
