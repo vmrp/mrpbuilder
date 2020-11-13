@@ -137,16 +137,18 @@ enum {
 int32 mrc_event(int32 code, int32 p0, int32 p1) {
     if (code == MR_MOUSE_DOWN || code == MR_MOUSE_MOVE) {
         char text[40];
-        int32 SCRW = *(HELPER()->mr_screen_w);
-        int32 SCRH = *(HELPER()->mr_screen_h);
-        uint16 *scrBuf = *(HELPER()->mr_screenBuf);
+        mr_table *helper = HELPER();
 
-        mrc_drawRect(0, 0, 240, 320, 0xff, 0xff, 0xff);
+        int32 SCRW = *(helper->mr_screen_w);
+        int32 SCRH = *(helper->mr_screen_h);
+        uint16 *scrBuf = *(helper->mr_screenBuf);
+
+        mrc_drawRect(0, 0, SCRW, SCRH, 0xff, 0xff, 0xff);
         mrc_drawRect(p0, 0, 1, SCRH, 0xff, 0, 0);
         mrc_drawRect(0, p1, SCRW, 1, 0xff, 0, 0);
-        HELPER()->sprintf(text, "x=%d,y=%d", p0, p1);
+        helper->sprintf(text, "x=%d,y=%d", p0, p1);
         mrc_drawText(text, 0, 0, 255, 0, 0, 0, 1);
-        HELPER()->mr_drawBitmap(scrBuf, 0, 0, SCRW, SCRH);
+        helper->mr_drawBitmap(scrBuf, 0, 0, SCRW, SCRH);
     }
     return 0;
 }

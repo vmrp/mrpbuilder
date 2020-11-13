@@ -12,13 +12,11 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 
 	"golang.org/x/text/encoding/simplifiedchinese"
 )
-
-const elfToExt = false
 
 func paif(err error) {
 	if err != nil {
@@ -195,7 +193,7 @@ func initHeader(header *MRPHeader, config *Config) {
 	header.VersionBE = LittleEndianToBigEndian(config.Version)
 	header.Plat = 1
 
-	_, filename := path.Split(config.FileName)
+	_, filename := filepath.Split(config.FileName)
 	tmp := UTF8ToGBK(filename)
 	if len(tmp) > 11 {
 		paif(errors.New("FileName.length > 11"))
@@ -233,29 +231,37 @@ func main() {
 	var config Config
 	var header MRPHeader
 
-	config.CPU = 3
-	config.Visible = 1
-	config.Shell = 0
+	configFile := "pack.json"
+	if len(os.Args) == 2 {
+		var dir string
+		wd, err := os.Getwd()
+		paif(err)
 
-	bts, err := ioutil.ReadFile("pack.json")
+		dir, configFile = filepath.Split(filepath.Join(wd, os.Args[1]))
+		paif(os.Chdir(dir))
+	}
+
+	bts, err := ioutil.ReadFile(configFile)
 	paif(err)
 	err = json.Unmarshal(bts, &config)
 	paif(err)
+
+	config.CPU = 3
+	config.Visible = 1
+	config.Shell = 0
 
 	initHeader(&header, &config)
 
 	fileList := make([]FileList, len(config.Files))
 	var listLen, dataLen uint32
 	for i, v := range config.Files {
-		if elfToExt {
-			if strings.ToLower(path.Ext(v)) == ".elf" {
-				ext := strings.Replace(v, ".elf", ".ext", -1)
-				toExt(v, ext)
-				v = ext
-			}
+		if strings.HasSuffix(v, "cfunction.elf") {
+			ext := strings.Replace(v, ".elf", ".ext", -1)
+			toExt(v, ext)
+			v = ext
 		}
 
-		_, file := path.Split(v)
+		_, file := filepath.Split(v)
 		// []byte(file) 转换出来的slice是没有'\0'结尾的
 		tmp := append([]byte(file), 0x00)
 		listItem := &fileList[i]
