@@ -1,0 +1,12 @@
+{
+    "display": "test",
+    "filename": "./test.mrp",
+    "appid": 1,
+    "version": 1,
+    "vendor": "vendor",
+    "description": "desc",
+    "files": [
+        "../lib/start.mr",
+        "./tmp/cfunction.elf"
+    ]
+}
