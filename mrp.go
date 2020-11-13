@@ -1,11 +1,5 @@
 package main
 
-// ext文件实际是fmt(elf)文件仅保留ro/rw/zi段，然后在开始处增加8字节MRPGCMAP
-// 中间要保留下来的长度这样得到：
-// Program header在文件开头偏移量28的4字节记录
-// 这个偏移量再加上16得到一个新的偏移量，在这个位置的4字节就是代码的长度
-// 最后删除开始52字节(elf头)和保留长度之后的东西
-
 import (
 	"bytes"
 	"compress/gzip"
@@ -14,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"io/ioutil"
 	"os"
@@ -45,6 +40,11 @@ func gzipFile(file string) []byte {
 	return buf.Bytes()
 }
 
+// ext文件实际是fmt(elf)文件仅保留ro/rw/zi段，然后在开始处增加8字节MRPGCMAP
+// 中间要保留下来的长度这样得到：
+// Program header在文件开头偏移量28的4字节记录
+// 这个偏移量再加上16得到一个新的偏移量，在这个位置的4字节就是代码的长度
+// 最后删除开始52字节(elf头)和保留长度之后的东西
 func toExt(elfFileName string, outputFileName string) {
 	fmt.Println(elfFileName, "->", outputFileName)
 	ef, err := elf.Open(elfFileName)
@@ -74,32 +74,28 @@ func toExt(elfFileName string, outputFileName string) {
 }
 
 type MRPHeader struct {
-	Magic         [4]byte
-	FileStart     uint32
-	MrpTotalLen   uint32
-	MRPHeaderSize uint32
-	FileName      [12]byte
-	DisplayName   [24]byte
-	Unknown       [16]byte
-	AppidLE       uint32
-	VersionLE     uint32
-	Unknown2      [12]byte
-	Vendor        [40]byte
-	Desc          [64]byte
-	AppidBE       uint32
-	VersionBE     uint32
-	Unknown3      [40]byte
-}
-
-func main2() {
-	buf, err := ioutil.ReadFile("asm.mrp")
-	paif(err)
-
-	var data MRPHeader
-	if err := binary.Read(bytes.NewReader(buf), binary.LittleEndian, &data); err != nil {
-		fmt.Println("binary.Read failed:", err)
-	}
-	printHeader(&data)
+	Magic          [4]byte  // [0:4]     固定标识'MRPG'
+	FileStart      uint32   // [4:8]     文件头的长度+文件列表的长度-8
+	MrpTotalLen    uint32   // [8:12]    mrp文件的总长度
+	MRPHeaderSize  uint32   // [12:16]   文件头的长度，通常是240，如果有额外数据则需要加上额外数据的长度
+	FileName       [12]byte // [16:28]   GB2312编码带'\0'
+	DisplayName    [24]byte // [28:52]   GB2312编码带'\0'
+	AuthStr        [16]byte // [52:68]   编译器的授权字符串的第2、4、8、9、11、12、1、7、6位字符重新组合的一个字符串
+	Appid          uint32   // [68:72]
+	Version        uint32   // [72:76]
+	Flag           uint32   // [76:80]   第0位是显示标志， 1-2位是cpu性能要求，所以cpu取值范围是0-3只对展讯有效， 第3位是否是shell启动的标志，0表示start启动，1表示shell启动
+	BuilderVersion uint32   // [80:84]   应该是编译器的版本，从几个mrpbuilder看都是10002
+	Crc32          uint32   // [84:88]   整个文件计算crc后写回，计算时此字段的值为0
+	Vendor         [40]byte // [88:128]  GB2312编码带'\0'
+	Desc           [64]byte // [128:192] GB2312编码带'\0'
+	AppidBE        uint32   // [192:196] 大端appid
+	VersionBE      uint32   // [196:200] 大端version
+	Reserve2       uint32   // [200:204] 保留字段
+	ScreenWidth    uint16   // [204:206] 在反编译的mrpbuilder中能看到有屏幕信息的字段，但是在斯凯提供的文档中并没有说明
+	ScreenHeight   uint16   // [206:208]
+	Plat           uint8    // [208:209] mtk/mstar填1，spr填2，其它填0
+	Reserve3       [31]byte // [209:240]
+	// ...       额外的数据，通常情况下没有
 }
 
 func printHeader(data *MRPHeader) {
@@ -108,26 +104,37 @@ func printHeader(data *MRPHeader) {
 	fmt.Println("MrpTotalLen:", data.MrpTotalLen)
 	fmt.Println("MRPHeaderSize:", data.MRPHeaderSize)
 	fmt.Println("FileName:", string(data.FileName[:]))
-	fmt.Println("DisplayName:", foo(data.DisplayName[:]))
-	fmt.Println("Unknown:", data.Unknown)
-	fmt.Println("AppidLE:", data.AppidLE)
-	fmt.Println("VersionLE:", data.VersionLE)
-	fmt.Println("Unknown2:", data.Unknown2)
-	fmt.Println("Vendor:", foo(data.Vendor[:]))
-	fmt.Println("Desc:", foo(data.Desc[:]))
+	fmt.Println("DisplayName:", GBKToUTF8(data.DisplayName[:]))
+	fmt.Println("AuthStr:", data.AuthStr)
+	fmt.Println("Appid:", data.Appid)
+	fmt.Println("Version:", data.Version)
+	fmt.Println("Flag:", data.Flag)
+	fmt.Println("BuilderVersion:", data.BuilderVersion)
+	fmt.Println("Crc32:", data.Crc32)
+	fmt.Println("Vendor:", GBKToUTF8(data.Vendor[:]))
+	fmt.Println("Desc:", GBKToUTF8(data.Desc[:]))
 	fmt.Println("AppidBE:", data.AppidBE)
 	fmt.Println("VersionBE:", data.VersionBE)
-	fmt.Println("Unknown3:", data.Unknown3)
+	fmt.Println("ScreenWidth:", data.ScreenWidth)
+	fmt.Println("ScreenHeight:", data.ScreenHeight)
+	fmt.Println("Plat:", data.Plat)
 
-	fmt.Println("test AppidLE:", BigEndianToLittleEndian(data.AppidBE))
-	fmt.Println("test AppidBE:", LittleEndianToBigEndian(data.AppidLE))
+	fmt.Println("test Appid BE to LE:", BigEndianToLittleEndian(data.AppidBE))
+	fmt.Println("test Appid LE to BE:", LittleEndianToBigEndian(data.Appid))
 }
 
-func foo(bts []byte) string {
+func GBKToUTF8(bts []byte) string {
 	var dec = simplifiedchinese.GBK.NewDecoder()
 	r, err := dec.Bytes(bts)
 	paif(err)
 	return string(r)
+}
+
+func UTF8ToGBK(str string) []byte {
+	var enc = simplifiedchinese.GBK.NewEncoder()
+	bts, err := enc.Bytes([]byte(str))
+	paif(err)
+	return bts
 }
 
 func BigEndianToLittleEndian(v uint32) uint32 {
@@ -155,6 +162,9 @@ type Config struct {
 	Version     uint32   `json:"version"`
 	Vendor      string   `json:"vendor"`
 	Description string   `json:"description"`
+	Visible     uint32   //默认1
+	CPU         uint32   //默认1
+	Shell       uint32   //默认0
 	Files       []string `json:"files"`
 }
 
@@ -168,19 +178,25 @@ type FileList struct {
 }
 
 func initHeader(header *MRPHeader, config *Config) {
+	var flag uint32 = 1
+	if config.Visible == 0 {
+		flag = 0
+	}
+	flag = flag + (config.CPU&0b11)<<1
+	flag = flag + (config.Shell&0b1)<<3
+
 	header.Magic = [4]byte{'M', 'R', 'P', 'G'}
-	header.MRPHeaderSize = 240
-	header.AppidLE = config.Appid
-	header.VersionLE = config.Version
+	header.MRPHeaderSize = 240 // todo 这个值不能固定死，需要计算出来，因为文件头还可以附带额外的数据
+	header.Appid = config.Appid
+	header.Version = config.Version
+	header.Flag = flag
+	header.BuilderVersion = 10002
 	header.AppidBE = LittleEndianToBigEndian(config.Appid)
 	header.VersionBE = LittleEndianToBigEndian(config.Version)
-
-	// 不知道是什么，复制一个mrp文件里的
-	header.Unknown = [16]byte{55, 49, 97, 56, 56, 97, 57, 53, 101, 0, 0, 0, 0, 0, 0, 0}
-	header.Unknown2 = [12]byte{7, 0, 0, 0, 18, 39, 0, 0, 172, 210, 69, 95}
+	header.Plat = 1
 
 	_, filename := path.Split(config.FileName)
-	tmp := utf8Togbk(filename)
+	tmp := UTF8ToGBK(filename)
 	if len(tmp) > 11 {
 		paif(errors.New("FileName.length > 11"))
 	}
@@ -188,7 +204,7 @@ func initHeader(header *MRPHeader, config *Config) {
 		header.FileName[i] = v
 	}
 
-	tmp = utf8Togbk(config.Display)
+	tmp = UTF8ToGBK(config.Display)
 	if len(tmp) > 23 {
 		paif(errors.New("Display.length > 11"))
 	}
@@ -196,7 +212,7 @@ func initHeader(header *MRPHeader, config *Config) {
 		header.DisplayName[i] = v
 	}
 
-	tmp = utf8Togbk(config.Vendor)
+	tmp = UTF8ToGBK(config.Vendor)
 	if len(tmp) > 39 {
 		paif(errors.New("Vendor.length > 11"))
 	}
@@ -204,7 +220,7 @@ func initHeader(header *MRPHeader, config *Config) {
 		header.Vendor[i] = v
 	}
 
-	tmp = utf8Togbk(config.Description)
+	tmp = UTF8ToGBK(config.Description)
 	if len(tmp) > 23 {
 		paif(errors.New("Description.length > 11"))
 	}
@@ -216,6 +232,10 @@ func initHeader(header *MRPHeader, config *Config) {
 func main() {
 	var config Config
 	var header MRPHeader
+
+	config.CPU = 3
+	config.Visible = 1
+	config.Shell = 0
 
 	bts, err := ioutil.ReadFile("pack.json")
 	paif(err)
@@ -252,12 +272,9 @@ func main() {
 	header.FileStart = filePos - 8 // 不明白为什么要减8，但是必需这样做
 	header.MrpTotalLen = header.MRPHeaderSize + listLen + dataLen
 
-	mrpf, err := os.Create(config.FileName)
-	paif(err)
-	defer mrpf.Close()
-
+	buf := new(bytes.Buffer)
 	// 写文件头
-	err = binary.Write(mrpf, binary.LittleEndian, &header)
+	err = binary.Write(buf, binary.LittleEndian, &header)
 	paif(err)
 
 	// 写出文件列表
@@ -269,28 +286,50 @@ func main() {
 		// 下一个文件数据的开始位置
 		filePos += listItem.FileLen
 
-		mrpf.Write(getUint32Data(listItem.FileNameLen))
-		mrpf.Write(listItem.FileName)
-		mrpf.Write(getUint32Data(listItem.FilePos))
-		mrpf.Write(getUint32Data(listItem.FileLen))
-		mrpf.Write(getUint32Data(0))
+		buf.Write(getUint32Data(listItem.FileNameLen))
+		buf.Write(listItem.FileName)
+		buf.Write(getUint32Data(listItem.FilePos))
+		buf.Write(getUint32Data(listItem.FileLen))
+		buf.Write(getUint32Data(0))
 		fmt.Printf("filename: %s \t pos: %d \t len: %d\n", string(listItem.FileName), listItem.FilePos, listItem.FileLen)
 	}
 
 	// 写出文件数据
 	for i := range fileList {
 		listItem := &fileList[i]
-		mrpf.Write(getUint32Data(listItem.FileNameLen))
-		mrpf.Write(listItem.FileName)
-		mrpf.Write(getUint32Data(listItem.FileLen))
-		mrpf.Write(listItem.FileData)
+		buf.Write(getUint32Data(listItem.FileNameLen))
+		buf.Write(listItem.FileName)
+		buf.Write(getUint32Data(listItem.FileLen))
+		buf.Write(listItem.FileData)
 	}
+
+	bts = buf.Bytes()
+
+	if len(bts) != int(header.MrpTotalLen) {
+		fmt.Println("Write Data Fail")
+		return
+	}
+
+	crc := crc32.Checksum(bts, crc32.MakeTable(crc32.IEEE))
+
+	mrpf, err := os.Create(config.FileName)
+	paif(err)
+	defer mrpf.Close()
+
+	mrpf.Write(bts[:84])
+	mrpf.Write(getUint32Data(crc))
+	mrpf.Write(bts[88:])
+
 	fmt.Println("done.")
 }
 
-func utf8Togbk(str string) []byte {
-	var enc = simplifiedchinese.GBK.NewEncoder()
-	bts, err := enc.Bytes([]byte(str))
+func test() {
+	buf, err := ioutil.ReadFile("asm.mrp")
 	paif(err)
-	return bts
+
+	var data MRPHeader
+	if err := binary.Read(bytes.NewReader(buf), binary.LittleEndian, &data); err != nil {
+		fmt.Println("binary.Read failed:", err)
+	}
+	printHeader(&data)
 }
