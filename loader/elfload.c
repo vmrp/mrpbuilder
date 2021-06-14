@@ -1,3 +1,4 @@
+// https://github.com/erincandescent/elfload
 /* Copyright © 2014, Owen Shepherd
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -37,11 +38,8 @@ el_status el_findphdr(el_ctx *ctx, Elf_Phdr *phdr, uint32 type, unsigned *i) {
 
 el_status el_init(el_ctx *ctx) {
     el_status rv = EL_OK;
-    /* load phdrs */
-    Elf_Phdr ph;
-    unsigned i = 0;
 
-    rv = el_pread(ctx, &ctx->ehdr, sizeof ctx->ehdr, 0);
+    rv = el_pread(ctx, &ctx->ehdr, sizeof(ctx->ehdr), 0);
     if (rv) return rv;
 
     /* validate header */
@@ -58,16 +56,6 @@ el_status el_init(el_ctx *ctx) {
     if (ctx->ehdr.e_ident[EI_VERSION] != EV_CURRENT)
         return EL_NOTELF;
 
-#if 0
-    /* gandr binaries use the STANDALONE ABI */
-    if (ctx->ehdr.e_ident[EI_OSABI] != ELFOSABI_STANDALONE)
-        return EL_WRONGOS;
-
-    /* G is for Gandr
-    if (ctx->ehdr.e_ident[EI_ABIVERSION] != 'G')
-        return EL_WRONGOS; */
-#endif
-
     if (ctx->ehdr.e_type != ET_EXEC && ctx->ehdr.e_type != ET_DYN)
         return EL_NOTEXEC;
 
@@ -82,27 +70,34 @@ el_status el_init(el_ctx *ctx) {
     ctx->align = 1;
     ctx->memsz = 0;
 
-    for (;;) {
-        Elf_Addr phend;
+    if (ctx->ehdr.e_phentsize != sizeof(Elf_Phdr))
+        return EL_NOTELF;
 
-        rv = el_findphdr(ctx, &ph, PT_LOAD, &i);
-        if (rv) return rv;
+    { /* load phdrs */
+        unsigned i = 0;
+        for (;;) {
+            Elf_Phdr ph;
+            Elf_Addr phend;
 
-        if (i == (unsigned)-1)
-            break;
+            rv = el_findphdr(ctx, &ph, PT_LOAD, &i);
+            if (rv) return rv;
 
-        phend = ph.p_vaddr + ph.p_memsz;
-        if (phend > ctx->memsz)
-            ctx->memsz = phend;
+            if (i == (unsigned)-1)
+                break;
 
-        if (ph.p_align > ctx->align)
-            ctx->align = ph.p_align;
+            phend = ph.p_vaddr + ph.p_memsz;
+            if (phend > ctx->memsz)
+                ctx->memsz = phend;
 
-        i++;
+            if (ph.p_align > ctx->align)
+                ctx->align = ph.p_align;
+
+            i++;
+        }
     }
-
     if (ctx->ehdr.e_type == ET_DYN) {
-        i = 0;
+        Elf_Phdr ph;
+        unsigned i = 0;
         rv = el_findphdr(ctx, &ph, PT_DYNAMIC, &i);
         if (rv) return rv;
 
@@ -115,17 +110,8 @@ el_status el_init(el_ctx *ctx) {
         ctx->dynoff = 0;
         ctx->dynsize = 0;
     }
-
     return rv;
 }
-
-/*
-typedef void* (*el_alloc_cb)(
-    el_ctx *ctx,
-    Elf_Addr phys,
-    Elf_Addr virt,
-    Elf_Addr size);
-*/
 
 el_status el_load(el_ctx *ctx, el_alloc_cb alloc) {
     Elf_Addr pload, vload;
@@ -218,8 +204,9 @@ el_status el_relocate(el_ctx *ctx) {
     char *base;
     el_status rv = EL_OK;
     el_relocinfo ri;
-    size_t relcnt, i;
+    size_t cnt, i;
     Elf_Rel *reltab;
+    Elf_RelA *relatab;
 
     // not dynamic
     if (ctx->ehdr.e_type != ET_DYN)
@@ -236,9 +223,9 @@ el_status el_relocate(el_ctx *ctx) {
         return EL_BADREL;
     }
 
-    relcnt = ri.tablesize / sizeof(Elf_Rel);
+    cnt = ri.tablesize / sizeof(Elf_Rel);
     reltab = (Elf_Rel *)(base + ri.tableoff);
-    for (i = 0; i < relcnt; i++) {
+    for (i = 0; i < cnt; i++) {
         rv = el_applyrel(ctx, &reltab[i]);
         if (rv) return rv;
     }
@@ -247,20 +234,19 @@ el_status el_relocate(el_ctx *ctx) {
 #endif
 
 #ifdef EL_ARCH_USES_RELA
-    if ((rv = el_findrelocs(ctx, &ri, DT_RELA)))
-        return rv;
+    rv = el_findrelocs(ctx, &ri, DT_RELA);
+    if (rv) return rv;
 
     if (ri.entrysize != sizeof(Elf_RelA) && ri.tablesize) {
-        EL_DEBUG("Relocation size %u doesn't match expected %u\n",
-                 ri.entrysize, sizeof(Elf_RelA));
+        EL_DEBUG("Relocation size %u doesn't match expected %u\n", ri.entrysize, sizeof(Elf_RelA));
         return EL_BADREL;
     }
 
-    size_t relacnt = ri.tablesize / sizeof(Elf_RelA);
-    Elf_RelA *relatab = (Elf_RelA *)(base + ri.tableoff);
-    for (size_t i = 0; i < relacnt; i++) {
-        if ((rv = el_applyrela(ctx, &relatab[i])))
-            return rv;
+    cnt = ri.tablesize / sizeof(Elf_RelA);
+    relatab = (Elf_RelA *)(base + ri.tableoff);
+    for (i = 0; i < cnt; i++) {
+        rv = el_applyrela(ctx, &relatab[i]);
+        if (rv) return rv;
     }
 #else
     EL_DEBUG("%s", "Architecture doesn't use RELA\n");

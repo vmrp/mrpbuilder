@@ -41,6 +41,10 @@ start.mr 文件夹：用来生成start.mr，里面包含斯凯的编译器，如
 
 你也可以使用其它mrp打包工具，只需要将bin.elf、start.mr、cfunction.ext和你的其它需要打包的资源文件打包到一起就可以了
 
+## 工作原理
+
+通过elfloader加载elf文件实现，因此cfunction.ext实际上就是elfloader，所以它需要用斯凯SDK编译
+
 # License
 
 GNU General Public License v3.0

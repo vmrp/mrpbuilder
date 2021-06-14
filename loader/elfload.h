@@ -19,7 +19,7 @@
 #include "elf.h"
 
 typedef uint32 size_t;
-typedef int32 bool;
+typedef int32 BOOL;
 typedef uint32 uintptr_t;
 typedef uint32 uint32_t;
 
@@ -54,7 +54,7 @@ typedef enum {
 } el_status;
 
 typedef struct el_ctx {
-    bool (*pread)(struct el_ctx *ctx, void *dest, size_t nb, size_t offset);
+    BOOL (*pread)(struct el_ctx *ctx, void *dest, size_t nb, size_t offset);
 
     /* base_load_* -> address we are actually going to load at
      */

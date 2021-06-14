@@ -15,9 +15,8 @@ void logPrint(char* msg) {
     mrc_close(ff);
 }
 
-#define R_AARCH64_NONE 0
-// #define R_AARCH64_RELATIVE 1027
-#define R_AARCH64_RELATIVE 23
+#define R_ARM_NONE 0
+#define R_ARM_RELATIVE 23
 
 el_status el_applyrela(el_ctx* ctx, Elf_RelA* rel) {
     uintptr_t* p = (uintptr_t*)(rel->r_offset + ctx->base_load_paddr);
@@ -25,19 +24,19 @@ el_status el_applyrela(el_ctx* ctx, Elf_RelA* rel) {
     uint32_t sym = ELF_R_SYM(rel->r_info);
 
     switch (type) {
-        case R_AARCH64_NONE:
-            EL_DEBUG("%s", "R_AARCH64_NONE\n");
-            break;
-        case R_AARCH64_RELATIVE:
+        case R_ARM_RELATIVE:
             if (sym) {
-                EL_DEBUG("%s", "R_AARCH64_RELATIVE with symbol ref!\n");
+                EL_DEBUG("%s", "R_ARM_RELATIVE with symbol ref!\n");
                 return EL_BADREL;
             }
 
-            EL_DEBUG("Applying R_AARCH64_RELATIVE reloc @%p\n", p);
+            EL_DEBUG("Applying R_ARM_RELATIVE reloc @%p\n", p);
             *p = rel->r_addend + ctx->base_load_vaddr;
             break;
 
+        case R_ARM_NONE:
+            EL_DEBUG("%s", "R_ARM_NONE\n");
+            // break;
         default:
             EL_DEBUG("Bad relocation %u\n", type);
             return EL_BADREL;
@@ -52,19 +51,19 @@ el_status el_applyrel(el_ctx* ctx, Elf_Rel* rel) {
     uint32_t sym = ELF_R_SYM(rel->r_info);
 
     switch (type) {
-        case R_AARCH64_NONE:
-            EL_DEBUG("%s", "R_AARCH64_NONE\n");
-            break;
-        case R_AARCH64_RELATIVE:
+        case R_ARM_RELATIVE:
             if (sym) {
-                EL_DEBUG("%s", "R_AARCH64_RELATIVE with symbol ref!\n");
+                EL_DEBUG("%s", "R_ARM_RELATIVE with symbol ref!\n");
                 return EL_BADREL;
             }
 
-            EL_DEBUG("Applying R_AARCH64_RELATIVE reloc @%p\n", p);
+            EL_DEBUG("el_applyrel Applying R_ARM_RELATIVE reloc @%p\n", p);
             *p += ctx->base_load_vaddr;
             break;
 
+        case R_ARM_NONE:
+            EL_DEBUG("%s", "R_ARM_NONE\n");
+            // break;
         default:
             EL_DEBUG("Bad relocation %u\n", type);
             return EL_BADREL;
@@ -84,7 +83,7 @@ void showText(char* str) {
 void* rawElf;
 int32 rawElfLen;
 
-static bool fpread(el_ctx* ctx, void* dest, size_t nb, size_t offset) {
+static BOOL fpread(el_ctx* ctx, void* dest, size_t nb, size_t offset) {
     uint8* p = rawElf;
     p += offset;
     memcpy(dest, p, nb);
@@ -92,7 +91,8 @@ static bool fpread(el_ctx* ctx, void* dest, size_t nb, size_t offset) {
 }
 
 static void* alloccb(el_ctx* ctx, Elf_Addr phys, Elf_Addr virt, Elf_Addr size) {
-    return (void*)virt;
+    // return (void*)virt;
+    return (void*)phys;
 }
 
 inFuncs_st inFuncs;
@@ -103,7 +103,7 @@ int32 mrc_init(void) {
     el_ctx ctx;
     el_status stat;
 
-    showText("gcc mrp v20201111");
+    showText("gcc mrp v20210614");
 
     outFuncs = NULL;
     elfBuf = NULL;
@@ -162,18 +162,18 @@ int32 mrc_init(void) {
         EL_DEBUG("loading: error %d\n", stat);
         return MR_FAILED;
     }
-    mrc_freeFileData(rawElf, rawElfLen);
 
     stat = el_relocate(&ctx);
     if (stat) {
         EL_DEBUG("relocating: error %d\n", stat);
         return MR_FAILED;
     }
+    mrc_freeFileData(rawElf, rawElfLen);
     {
         _START ep = (_START)(ctx.ehdr.e_entry + (uintptr_t)elfBuf);
         EL_DEBUG("Binary entrypoint is 0x%X; invoking 0x%p\n", ctx.ehdr.e_entry, ep);
         outFuncs = ep(&inFuncs);
-        outFuncs->mrc_init();
+        return outFuncs->mrc_init();
     }
     return 0;
 }

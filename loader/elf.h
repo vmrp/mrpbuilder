@@ -32,8 +32,9 @@
 
 ////////////////////////////////////////////////////////////
 #include "../header/mrc_base.h"
+
 #define EM_THIS EM_ARM
-// #define EL_ARCH_USES_RELA
+#define EL_ARCH_USES_RELA
 #define EL_ARCH_USES_REL
 
 #define ELFSIZE 32
@@ -129,20 +130,20 @@ typedef uint16    Elf64_Quarter;
 
 /* ELF Header */
 typedef struct {
-    unsigned char    e_ident[EI_NIDENT];     /* ELF Identification */
-    Elf32_Half       e_type;                 /* object file type */
-    Elf32_Half       e_machine;              /* machine */
-    Elf32_Word       e_version;              /* object file version */
-    Elf32_Addr       e_entry;                /* virtual entry point */
-    Elf32_Off        e_phoff;                /* program header table offset */
-    Elf32_Off        e_shoff;                /* section header table offset */
-    Elf32_Word       e_flags;                /* processor-specific flags */
-    Elf32_Half       e_ehsize;               /* ELF header size */
-    Elf32_Half       e_phentsize;            /* program header entry size */
-    Elf32_Half       e_phnum;                /* number of program header entries */
-    Elf32_Half       e_shentsize;            /* section header entry size */
-    Elf32_Half       e_shnum;                /* number of section header entries */
-    Elf32_Half       e_shstrndx;             /* section header table's "section
+    unsigned char    e_ident[EI_NIDENT];     /* 0x00 16 ELF Identification */
+    Elf32_Half       e_type;                 /* 0x10 2 object file type */
+    Elf32_Half       e_machine;              /* 0x12 2 machine */
+    Elf32_Word       e_version;              /* 0x14 4 object file version */
+    Elf32_Addr       e_entry;                /* 0x18 4 virtual entry point */
+    Elf32_Off        e_phoff;                /* 0x1c 4 program header table offset */
+    Elf32_Off        e_shoff;                /* 0x20 4 section header table offset */
+    Elf32_Word       e_flags;                /* 0x24 4 processor-specific flags */
+    Elf32_Half       e_ehsize;               /* 0x28 2 ELF header size */
+    Elf32_Half       e_phentsize;            /* 0x2A 2 program header entry size */
+    Elf32_Half       e_phnum;                /* 0x2C 2 number of program header entries */
+    Elf32_Half       e_shentsize;            /* 0x2E 2 section header entry size */
+    Elf32_Half       e_shnum;                /* 0x30 2 number of section header entries */
+    Elf32_Half       e_shstrndx;             /* 0x32 2 section header table's "section
                                                 header string table" entry offset */
 } Elf32_Ehdr;
 
