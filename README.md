@@ -1,5 +1,11 @@
 # 使用gcc开发mrp
 
+## 工作原理
+
+实际上就是一个mrp版的elf加载器，启动方法仍然是原本的start.mr和cfunction.ext
+
+可以简单的理解为mrp加载运行linux下的可执行文件
+
 ## 文件介绍
 
 mrp.go 是一个go语言编写的mrp打包工具，主要用来打包资源文件
