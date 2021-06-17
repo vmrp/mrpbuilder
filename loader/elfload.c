@@ -15,6 +15,63 @@
  */
 #include "elfload.h"
 
+#define R_ARM_NONE 0
+#define R_ARM_RELATIVE 23
+
+el_status el_applyrela(el_ctx *ctx, Elf_RelA *rel) {
+    uintptr_t *p = (uintptr_t *)(rel->r_offset + ctx->base_load_paddr);
+    uint32_t type = ELF_R_TYPE(rel->r_info);
+    uint32_t sym = ELF_R_SYM(rel->r_info);
+
+    switch (type) {
+        case R_ARM_RELATIVE:
+            if (sym) {
+                EL_DEBUG("%s", "R_ARM_RELATIVE with symbol ref!\n");
+                return EL_BADREL;
+            }
+
+            EL_DEBUG("Applying R_ARM_RELATIVE reloc @%p\n", p);
+            *p = rel->r_addend + ctx->base_load_vaddr;
+            break;
+
+        case R_ARM_NONE:
+            EL_DEBUG("%s", "R_ARM_NONE\n");
+            // break;
+        default:
+            EL_DEBUG("Bad relocation %u\n", type);
+            return EL_BADREL;
+    }
+
+    return EL_OK;
+}
+
+el_status el_applyrel(el_ctx *ctx, Elf_Rel *rel) {
+    uintptr_t *p = (uintptr_t *)(rel->r_offset + ctx->base_load_paddr);
+    uint32_t type = ELF_R_TYPE(rel->r_info);
+    uint32_t sym = ELF_R_SYM(rel->r_info);
+
+    switch (type) {
+        case R_ARM_RELATIVE:
+            if (sym) {
+                EL_DEBUG("%s", "R_ARM_RELATIVE with symbol ref!\n");
+                return EL_BADREL;
+            }
+
+            EL_DEBUG("el_applyrel Applying R_ARM_RELATIVE reloc @%p\n", p);
+            *p += ctx->base_load_vaddr;
+            break;
+
+        case R_ARM_NONE:
+            EL_DEBUG("%s", "R_ARM_NONE\n");
+            // break;
+        default:
+            EL_DEBUG("Bad relocation %u\n", type);
+            return EL_BADREL;
+    }
+
+    return EL_OK;
+}
+
 el_status el_pread(el_ctx *ctx, void *def, size_t nb, size_t offset) {
     return ctx->pread(ctx, def, nb, offset) ? EL_OK : EL_EIO;
 }

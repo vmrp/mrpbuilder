@@ -8,68 +8,16 @@ extern int32 mr_c_function_load(int32 code);
 #define C_FUNCTION_P() (*(((void**)mr_c_function_load) - 1))
 #define GET_MR_TABLE() (*(((void**)mr_c_function_load) - 2))
 
+typedef void* (*T_mr_malloc)(uint32 len);
+typedef void (*T_mr_free)(void* p, uint32 len);
+static T_mr_malloc mr_malloc;
+static T_mr_free mr_free;
+
 void logPrint(char* msg) {
     int32 ff = mrc_open("elfloader.log", MR_FILE_CREATE | MR_FILE_WRONLY);
     mrc_seek(ff, 0, MR_SEEK_END);
     mrc_write(ff, msg, mrc_strlen(msg));
     mrc_close(ff);
-}
-
-#define R_ARM_NONE 0
-#define R_ARM_RELATIVE 23
-
-el_status el_applyrela(el_ctx* ctx, Elf_RelA* rel) {
-    uintptr_t* p = (uintptr_t*)(rel->r_offset + ctx->base_load_paddr);
-    uint32_t type = ELF_R_TYPE(rel->r_info);
-    uint32_t sym = ELF_R_SYM(rel->r_info);
-
-    switch (type) {
-        case R_ARM_RELATIVE:
-            if (sym) {
-                EL_DEBUG("%s", "R_ARM_RELATIVE with symbol ref!\n");
-                return EL_BADREL;
-            }
-
-            EL_DEBUG("Applying R_ARM_RELATIVE reloc @%p\n", p);
-            *p = rel->r_addend + ctx->base_load_vaddr;
-            break;
-
-        case R_ARM_NONE:
-            EL_DEBUG("%s", "R_ARM_NONE\n");
-            // break;
-        default:
-            EL_DEBUG("Bad relocation %u\n", type);
-            return EL_BADREL;
-    }
-
-    return EL_OK;
-}
-
-el_status el_applyrel(el_ctx* ctx, Elf_Rel* rel) {
-    uintptr_t* p = (uintptr_t*)(rel->r_offset + ctx->base_load_paddr);
-    uint32_t type = ELF_R_TYPE(rel->r_info);
-    uint32_t sym = ELF_R_SYM(rel->r_info);
-
-    switch (type) {
-        case R_ARM_RELATIVE:
-            if (sym) {
-                EL_DEBUG("%s", "R_ARM_RELATIVE with symbol ref!\n");
-                return EL_BADREL;
-            }
-
-            EL_DEBUG("el_applyrel Applying R_ARM_RELATIVE reloc @%p\n", p);
-            *p += ctx->base_load_vaddr;
-            break;
-
-        case R_ARM_NONE:
-            EL_DEBUG("%s", "R_ARM_NONE\n");
-            // break;
-        default:
-            EL_DEBUG("Bad relocation %u\n", type);
-            return EL_BADREL;
-    }
-
-    return EL_OK;
 }
 
 void showText(char* str) {
@@ -98,6 +46,58 @@ static void* alloccb(el_ctx* ctx, Elf_Addr phys, Elf_Addr virt, Elf_Addr size) {
 inFuncs_st inFuncs;
 outFuncs_st* outFuncs;
 void* elfBuf;
+void* realElfBuf;
+int elfBufLen;
+
+// 实际上由于这个elfloader的功能太简单，加载的代码块有很大一部分空间是浪费掉的，而为了内存对齐又浪费掉一大块内存
+static void* allocMem(uint32 align, uint32 memsz) {
+    uint32 pp, t;
+    // 不能使用mrc_malloc();因为它实际申请的内度长度与传入的长度不同
+    // elfBuf = mrc_malloc(ctx.memsz);
+
+    // 获取底层的内存管理函数
+    mr_malloc = (T_mr_malloc)(((void**)inFuncs.mr_table)[0]);
+    mr_free = (T_mr_free)(((void**)inFuncs.mr_table)[1]);
+
+    elfBufLen = memsz;
+    elfBuf = mr_malloc(elfBufLen);
+    EL_DEBUG("alloc mem @%p\n", elfBuf);
+
+    pp = (uintptr_t)elfBuf;
+    t = pp % align;
+    if (t != 0) {  // 内存地址未对齐，采用先申请一块再释放的方法尝试对齐
+        void* tmp;
+        mr_free(elfBuf, elfBufLen);
+
+        tmp = mr_malloc(t);
+        elfBuf = mr_malloc(elfBufLen);
+        mr_free(tmp, t);
+        EL_DEBUG("mem not align, new1 @%p\n", elfBuf);
+    }
+
+    // 再次检查对齐
+    pp = (uintptr_t)elfBuf;
+    t = pp % align;
+    if (t != 0) {  // 仍未对齐，申请足够大的内存
+        int n = memsz / align;
+        if ((memsz % align) != 0) {
+            n++;
+        }
+        mr_free(elfBuf, elfBufLen);
+
+        elfBufLen = (n + 1) * align;  // n+1是为了确保有足够的空间进行对齐
+        realElfBuf = mr_malloc(elfBufLen);
+
+        pp = (uintptr_t)realElfBuf;
+        t = align - (pp % align);
+        elfBuf = ((char*)realElfBuf + t);
+
+        EL_DEBUG("mem not align, final realElfBuf: @%p, t:%d, elfBufLen:%d, elfBuf:@%p\n", realElfBuf, t, elfBufLen, elfBuf);
+    } else {
+        realElfBuf = elfBuf;  // realElfBuf用于最终释放
+    }
+    return elfBuf;
+}
 
 int32 mrc_init(void) {
     el_ctx ctx;
@@ -107,6 +107,8 @@ int32 mrc_init(void) {
 
     outFuncs = NULL;
     elfBuf = NULL;
+    realElfBuf = NULL;
+
     inFuncs.mr_table = GET_MR_TABLE();
     inFuncs.mr_c_function = C_FUNCTION_P();
     inFuncs.mrc_malloc = mrc_malloc;
@@ -150,12 +152,8 @@ int32 mrc_init(void) {
     }
 
     EL_DEBUG("ctx.align:%d, ctx.memsz:%d\n", ctx.align, ctx.memsz);
-    // if (posix_memalign(&elfBuf, ctx.align, ctx.memsz)) {
-    //     perror("memalign");
-    //     return 1;
-    // }
+    elfBuf = allocMem(ctx.align, ctx.memsz);
 
-    elfBuf = mrc_malloc(ctx.memsz);
     ctx.base_load_vaddr = ctx.base_load_paddr = (uintptr_t)elfBuf;
     stat = el_load(&ctx, alloccb);
     if (stat) {
@@ -173,6 +171,7 @@ int32 mrc_init(void) {
         _START ep = (_START)(ctx.ehdr.e_entry + (uintptr_t)elfBuf);
         EL_DEBUG("Binary entrypoint is 0x%X; invoking 0x%p\n", ctx.ehdr.e_entry, ep);
         outFuncs = ep(&inFuncs);
+        EL_DEBUG("invoking entrypoint done. ret: 0x%p\n", outFuncs);
         return outFuncs->mrc_init();
     }
     return 0;
@@ -183,8 +182,9 @@ int32 mrc_exitApp(void) {
     if (outFuncs) {
         ret = outFuncs->mrc_exitApp();
     }
-    if (elfBuf) {
-        mrc_free(elfBuf);
+    if (realElfBuf) {
+        mr_free(realElfBuf, elfBufLen);
+        realElfBuf = NULL;
         elfBuf = NULL;
     }
     return ret;
