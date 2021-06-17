@@ -51,6 +51,8 @@ start.mr 文件夹：用来生成start.mr，里面包含斯凯的编译器，如
 
 通过elfloader加载elf文件实现，因此cfunction.ext实际上就是elfloader，所以它需要用斯凯SDK编译
 
+(仍然存在未解决的r9寄存器问题, 因此gcc编译mrp仍然不可靠)
+
 # License
 
 GNU General Public License v3.0
